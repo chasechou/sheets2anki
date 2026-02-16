@@ -2,19 +2,19 @@
 
 **Sheets2Anki** is an Anki add-on that synchronizes your Anki decks with a published Google Sheets CSV. Your Google Sheets document serves as the source of truth: when you sync, cards are created, updated, or removed in your Anki deck to reflect the sheet’s contents. This add-on is currently in **beta**, so features and behavior may still change.
 
+This is a fork of https://github.com/sebastianpaez/sheets2anki, to add support for all card types.
+
 ## Features
 
 - **Google Sheets as Source of Truth:**  
   Your published Google Sheet determines the cards present in Anki.  
-- **Supports Both Basic and Cloze Cards:**  
-  Automatically detects Cloze formatting (`{{c1::...}}`) in the question field for Cloze cards. Other questions become Basic cards.  
 - **Automatic Tag Assignment:**  
   If you have a `tags` column in your sheet, those tags will be assigned to the cards in Anki.  
 - **Deck Maintenance:**  
   - **Removed in Sheet → Removed in Anki:** If a card disappears from the sheet, it is removed from Anki on the next sync.
   - **Removed in Anki → Not Removed in Sheet:** There is **no reverse sync**. Deleting a card in Anki does not affect the sheet; the card may reappear if you sync again unless it’s removed from the sheet.
   
-**Important:** This add-on is in **beta** and currently supports only Basic and Cloze note types. Future updates may improve or extend functionality.
+**Important:** This add-on is in **beta**. Future updates may improve or extend functionality.
 
 ## No Reverse Sync & Deck Disconnection
 
@@ -64,11 +64,6 @@ Use this [example Google Sheets document](https://docs.google.com/spreadsheets/d
 ## Requirements
 
 - **Anki Version:** Compatible with Anki 2.1.x.
-- **Note Models Needed:**
-  - **Basic:** Fields `Front` and `Back`.
-  - **Cloze:** Fields `Text` and `Extra`.
-
-Confirm these models exist before syncing.
 
 ## Troubleshooting
 
@@ -83,4 +78,4 @@ Confirm these models exist before syncing.
 
 ## Beta Status and Future Plans
 
-Sheets2Anki is in beta. Basic and Cloze types are supported now, but more features and improvements may follow as the project evolves. Keep an eye on this repository for updates.
+Sheets2Anki is in beta. More features and improvements may follow as the project evolves. Keep an eye on this repository for updates.

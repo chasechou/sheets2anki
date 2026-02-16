@@ -1,97 +1,81 @@
 import csv
 import requests
-import re  # Import the 're' module for regular expressions
-
+import io
+ 
 class RemoteDeck:
     def __init__(self):
         self.deckName = ""
-        self.questions = []  # Keep using 'questions' attribute
+        self.questions = [] 
         self.media = []
-
-    def getMedia(self):
-        return self.media
-
+ 
 def getRemoteDeck(url):
     try:
         response = requests.get(url)
         response.raise_for_status()
-        csv_data = response.content.decode('utf-8')
+        # Use io.StringIO to treat the string like a file object for the CSV reader
+        csv_file = io.StringIO(response.content.decode('utf-8'))
+        return parse_csv_data(csv_file)
     except Exception as e:
         raise Exception(f"Error downloading or reading the CSV: {e}")
-
-    data = parse_csv_data(csv_data)
-    remoteDeck = build_remote_deck_from_csv(data)
-    return remoteDeck
-
-def parse_csv_data(csv_data):
-    reader = csv.reader(csv_data.splitlines())
-    data = list(reader)
-    return data
-
-def build_remote_deck_from_csv(data):
-    # Process headers to find indices of 'question', 'answer', and 'tags'
-    headers = [h.strip().lower() for h in data[0]]
-    print("Headers:", headers)  # Debug message
-
-    question_index = headers.index('question') if 'question' in headers else headers.index('front') if 'front' in headers else 0
-    answer_index = headers.index('answer') if 'answer' in headers else headers.index('back') if 'back' in headers else 1
-    tag_index = headers.index('tags') if 'tags' in headers else None
-
-    print("Indices - Question:", question_index, "Answer:", answer_index, "Tags:", tag_index)  # Debug message
-
+ 
+def parse_csv_data(csv_file):
+    # Use DictReader! It automatically maps headers to values for us.
+    reader = csv.DictReader(csv_file)
+ 
+    # Normalize headers to remove whitespace
+    # This modifies the reader.fieldnames in place just to be safe
+    if reader.fieldnames:
+        reader.fieldnames = [h.strip() for h in reader.fieldnames]
+ 
+    remoteDeck = RemoteDeck()
+    remoteDeck.deckName = "Deck from CSV" # Default name, usually overwritten in main.py
     questions = []
-    for row_num, row in enumerate(data[1:], start=2):  # Start at line 2 (after headers)
-        print(f"Processing row {row_num}: {row}")  # Debug message
-
-        # Skip empty rows
-        if not any(cell.strip() for cell in row):
-            print(f"Row {row_num} skipped because it is empty")
+ 
+    for row_num, row in enumerate(reader, start=2):
+        # 1. Identify the Card Type
+        # Check for common names for the Type column
+        card_type = row.get('Type') or row.get('Note Type') or row.get('type')
+ 
+        if not card_type:
+            print(f"Row {row_num} skipped: No 'Type' column found.")
             continue
-
-        # Get question and answer
-        try:
-            question_text = row[question_index].strip()
-            answer_text = row[answer_index].strip()
-        except IndexError:
-            print(f"Row {row_num} skipped due to missing question or answer")
+ 
+        card_type = card_type.strip()
+        if not card_type:
+             # If the cell is empty, skip (or you could default to Basic)
             continue
-
-        # Get tags if available
-        tag_text = ''
-        if tag_index is not None and tag_index < len(row):
-            tag_text = row[tag_index].strip()
-        tags = tag_text.split('::') if tag_text else []
-        tags = [tag.strip() for tag in tags if tag.strip()]
-
-        # Detect if it's a Cloze deletion
-        if re.search(r'{{c\d+::.*?}}', question_text):
-            card_type = 'Cloze'
-            fields = {
-                'Text': question_text,
-                'Extra': answer_text  # The 'Extra' field can be empty
-            }
-        else:
-            card_type = 'Basic'
-            fields = {
-                'Front': question_text,
-                'Back': answer_text
-            }
-
-        print(f"Detected card type: {card_type}")  # Debug message
-
-        # Create question dictionary
+ 
+        # 2. Extract Tags
+        # Check for common names for the Tags column
+        tag_text = row.get('Tags') or row.get('tags') or ""
+        tags = []
+        if tag_text:
+            # Split by space or comma, depending on your preference. 
+            # Standard Anki uses spaces, but CSVs often use commas.
+            # Let's support space-separated tags like standard Anki import
+            tags = [t.strip() for t in tag_text.split(' ') if t.strip()]
+ 
+        # 3. Extract Fields
+        # Everything that isn't 'Type' or 'Tags' is considered a Field
+        fields = {}
+        excluded_columns = ['Type', 'Note Type', 'type', 'Tags', 'tags']
+ 
+        for header, value in row.items():
+            if header not in excluded_columns and header is not None:
+                # Only add if value is not empty? 
+                # No, Anki might need empty fields to clear previous data.
+                fields[header] = value.strip() if value else ""
+ 
+        # 4. Construct the Question Object
         question = {
             'type': card_type,
             'fields': fields,
             'tags': tags
         }
+ 
         questions.append(question)
-        print(f"Added question: {question_text}")  # Debug message
-
-    remoteDeck = RemoteDeck()
-    remoteDeck.deckName = "Deck from CSV"
-    remoteDeck.questions = questions  # Keep using 'questions' attribute
-
-    print(f"Total questions added: {len(questions)}")  # Debug message
-
+ 
+    remoteDeck.questions = questions
+    print(f"Total notes parsed: {len(questions)}")
+ 
     return remoteDeck
